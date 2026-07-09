@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="Mow Me — mow the whole world… if you can. Grass grows back. Upgrade your mower and yourself." />
+  <title>Mow Me 🌿</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="hud-top">
+      <div class="hud-group">
+        <span id="hud-coins" class="hud-pill">💰 0</span>
+        <span id="hud-tool" class="hud-pill">✂️ Rusty Scissors</span>
+      </div>
+      <div id="hud-progress">
+        <canvas id="minimap" width="640" height="14"></canvas>
+        <div id="hud-percent">0.0% mowed</div>
+      </div>
+      <div class="hud-group">
+        <button id="btn-shop" class="hud-btn" title="Shop (B)">🛒 Shop</button>
+        <button id="btn-sound" class="hud-btn" title="Sound (M)">🔊</button>
+        <button id="btn-fullscreen" class="hud-btn" title="Fullscreen (F)">⛶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Touch controls (shown on touch devices) -->
+  <div id="touch-controls" class="hidden">
+    <div class="tc-left">
+      <button class="tc-btn" id="tc-left">◀</button>
+      <button class="tc-btn" id="tc-right">▶</button>
+    </div>
+    <div class="tc-right">
+      <button class="tc-btn tc-small" id="tc-jump">⬆</button>
+      <button class="tc-btn tc-mow" id="tc-mow">✂️<span>MOW</span></button>
+    </div>
+  </div>
+
+  <!-- Start screen -->
+  <div id="start-overlay" class="overlay">
+    <div class="panel start-panel">
+      <h1>🌿 MOW ME</h1>
+      <p class="tagline">Mow <em>everything</em>… if you can. The grass never stops growing.</p>
+      <ul class="controls-help">
+        <li><b>Move</b> — A/D or ◀ ▶ arrows</li>
+        <li><b>Mow</b> — hold Space / J / mouse</li>
+        <li><b>Jump</b> — W / ↑</li>
+        <li><b>Shop</b> — B &nbsp;·&nbsp; <b>Fullscreen</b> — F</li>
+      </ul>
+      <button id="btn-start" class="big-btn">▶ Start mowing</button>
+      <p class="save-note" id="save-note"></p>
+    </div>
+  </div>
+
+  <!-- Shop -->
+  <div id="shop-overlay" class="overlay hidden">
+    <div class="panel shop-panel">
+      <div class="panel-head">
+        <h2>🛒 Shop</h2>
+        <span id="shop-coins" class="hud-pill">💰 0</span>
+        <button id="btn-shop-close" class="hud-btn">✕</button>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tools">🔧 Tools</button>
+        <button class="tab-btn" data-tab="skills">💪 Training</button>
+      </div>
+      <div id="tab-tools" class="tab-body"></div>
+      <div id="tab-skills" class="tab-body hidden"></div>
+      <div class="panel-foot">
+        <button id="btn-reset" class="danger-btn">🗑 Reset save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Victory -->
+  <div id="win-overlay" class="overlay hidden">
+    <div class="panel start-panel">
+      <h1>🏆 100% MOWED</h1>
+      <p class="tagline">You did the impossible. Every single blade of grass, gone.<br/>…for about five seconds. It's already growing back.</p>
+      <button id="btn-win-close" class="big-btn">Keep mowing</button>
+    </div>
+  </div>
+
+  <!-- Rotate device prompt -->
+  <div id="rotate-overlay">
+    <div class="rotate-inner">📱↻<br/>Please rotate your device<br/><small>Mow Me plays in landscape</small></div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
