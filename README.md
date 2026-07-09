@@ -7,6 +7,23 @@ The catch: the world is a 3,200-tile meadow, the grass **never stops growing**
 and the more it slows you down when you wade through it. Reaching 100% mowed
 is *nearly* impossible. Nearly.
 
+Also in the meadow:
+
+- 🌞🌙 **Day & night** — by day you see everything but the grass grows fast;
+  by night growth slows and cuts pay **+50%**, but you only see clearly in a
+  circle of light around you.
+- 👹 **Bosses** — three giant weeds block the deep meadow. Until you meet
+  their requirements (tool tier + % mowed) they can't be harmed: two shove you
+  flying backwards, and the Weed King **eats you** (respawn at the start).
+  Once unlocked they become proper fights — HP bars, regeneration, shoves and
+  a telegraphed snap attack. Beating all three is required for 100%.
+- ⚡ **Power-ups** — sparkling pickups spawn nearby and fade if ignored:
+  ☕ speed, 🪨 double power, 🍀 double coins, 🧊 freeze grass growth.
+- 🎓 A **mini tutorial** walks new players through the loop (skippable, and
+  returning saves never see it).
+
+See [ROADMAP.md](ROADMAP.md) for where the game is heading next.
+
 ## How to play
 
 - **Move** — `A`/`D` or `←`/`→` (touch: on-screen arrows)
@@ -62,9 +79,13 @@ versioned (`SAVE_KEY`) — bump it if you change the world size or save shape.
 
 | File | What it does |
 | --- | --- |
-| `js/config.js` | All constants & balance tables |
+| `js/config.js` | All constants & balance tables (tools, skills, bosses, power-ups, day/night) |
 | `js/main.js` | Game state, physics, mowing/growth logic, main loop |
-| `js/render.js` | Canvas rendering: world, grass, player, vehicles, minimap |
+| `js/render.js` | Canvas rendering: world, grass, player, vehicles, bosses, night, minimap |
+| `js/daynight.js` | Day/night cycle math: light level, growth & coin multipliers |
+| `js/boss.js` | Boss behavior: locking, shoves, the Weed King's snap, fight damage |
+| `js/powerups.js` | Power-up pickups & temporary boost effects |
+| `js/tutorial.js` | New-player tutorial banner (polls game state) |
 | `js/ui.js` | HUD, shop, toasts |
 | `js/input.js` | Keyboard / mouse / touch input |
 | `js/save.js` | localStorage persistence (grass packed 1 char per tuft) |

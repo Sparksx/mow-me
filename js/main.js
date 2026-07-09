@@ -1,17 +1,25 @@
 import {
   TILE_W, WORLD_TILES, WORLD_W, GROUND_Y, MAX_STAGE, GROW_TIME, GROW_JITTER,
   grassHp, grassCoins, MAX_SLOWDOWN, PLAYER, TOOLS_BY_ID, VEHICLE_TOOLS,
-  SHARPEN_BONUS, SAVE_INTERVAL,
+  SHARPEN_BONUS, SAVE_INTERVAL, CYCLE_LENGTH, BOSSES,
   SPEED_PER_LEVEL, MUSCLE_PER_LEVEL, FITNESS_PER_LEVEL, PROFIT_PER_LEVEL,
 } from './config.js';
 import { clamp, lerp, hashRand, formatDuration } from './util.js';
+import { isNight, growthMult, coinMult, AVG_GROWTH_MULT } from './daynight.js';
+import {
+  updatePowerups, boostSpeedMult, boostPowerMult, boostCoinMult, growthFrozen,
+} from './powerups.js';
+import { updateBosses, tryHitBoss, bossX } from './boss.js';
+import { initTutorial, updateTutorial } from './tutorial.js';
 import { freshState, saveState, loadState, clearSave, hasSave } from './save.js';
 import { actions, initInput, onHotkey } from './input.js';
 import { initRender, render, drawMinimap, viewWidth } from './render.js';
 import {
   initUI, updateHUD, renderShop, toggleShop, closeShop, isShopOpen, showWin, toast,
 } from './ui.js';
-import { initAudio, setMuted, isMuted, sfxSnip, sfxCoin, sfxJump } from './sound.js';
+import {
+  initAudio, setMuted, isMuted, sfxSnip, sfxCoin, sfxJump, sfxDeath, sfxBossDown,
+} from './sound.js';
 
 // ---------- state ----------
 
@@ -29,24 +37,31 @@ const loaded = loadState();
 if (loaded.state) {
   state = loaded.state;
   if (loaded.offlineSeconds > 90) {
-    applyGrowth(loaded.offlineSeconds);
+    state.cycleT = (state.cycleT + loaded.offlineSeconds) % CYCLE_LENGTH;
+    applyGrowth(loaded.offlineSeconds * AVG_GROWTH_MULT);
     toast(`🌱 While you were away (${formatDuration(loaded.offlineSeconds)}), the grass kept growing…`);
   }
 } else {
   state = freshState();
 }
 attachRuntime(state);
+let wasNight = isNight(state.cycleT);
 
 function attachRuntime(s) {
   // runtime-only fields (never saved)
   s.player = {
     x: s.playerX, y: GROUND_Y, vx: 0, vy: 0,
-    onGround: true, facing: 1, walkPhase: 0, mowing: false,
+    onGround: true, facing: 1, walkPhase: 0, mowing: false, stun: 0,
   };
   s.damage = new Map();
   s.particles = [];
   s.popups = [];
+  s.pickups = [];
+  s.deathFlash = 0;
   s.mowedPct = 0;
+  for (const cfg of BOSSES) {
+    if (!s.bosses[cfg.id]) s.bosses[cfg.id] = { hp: cfg.hp, dead: false };
+  }
   recountMowed(s);
 }
 
@@ -73,11 +88,11 @@ function toolPower() {
   const tool = TOOLS_BY_ID[state.toolId];
   const sharpen = state.ownedTools[state.toolId] ?? 0;
   const muscle = 1 + MUSCLE_PER_LEVEL * state.skills.muscle;
-  return tool.power * (1 + SHARPEN_BONUS * sharpen) * muscle;
+  return tool.power * (1 + SHARPEN_BONUS * sharpen) * muscle * boostPowerMult(state);
 }
 
 function walkSpeed() {
-  return PLAYER.baseSpeed * (1 + SPEED_PER_LEVEL * state.skills.speed);
+  return PLAYER.baseSpeed * (1 + SPEED_PER_LEVEL * state.skills.speed) * boostSpeedMult(state);
 }
 
 function grassSlowdown() {
@@ -97,10 +112,26 @@ function grassSlowdown() {
 function update(dt) {
   const pl = state.player;
 
+  // --- day / night ---
+  if (dt > 0) {
+    state.cycleT = (state.cycleT + dt) % CYCLE_LENGTH;
+    const night = isNight(state.cycleT);
+    if (night !== wasNight) {
+      wasNight = night;
+      toast(night
+        ? '🌙 Night falls — the grass dozes off, and cuts pay +50% 💰'
+        : '🌞 Sunrise! You can see again… and so can the grass. It grows faster.');
+    }
+  }
+
   // --- movement ---
   const dir = (actions.right ? 1 : 0) - (actions.left ? 1 : 0);
   if (dir !== 0) pl.facing = dir;
-  const targetVx = dir * walkSpeed() * grassSlowdown() * (pl.mowing ? PLAYER.mowSpeedMult : 1);
+  let targetVx = dir * walkSpeed() * grassSlowdown() * (pl.mowing ? PLAYER.mowSpeedMult : 1);
+  if (pl.stun > 0) {
+    pl.stun -= dt;
+    targetVx = 0; // still reeling from a boss shove
+  }
   pl.vx += clamp(targetVx - pl.vx, -PLAYER.accel * dt, PLAYER.accel * dt);
   pl.x = clamp(pl.x + pl.vx * dt, PLAYER.width, WORLD_W - PLAYER.width);
   state.playerX = pl.x;
@@ -118,15 +149,19 @@ function update(dt) {
   }
   pl.walkPhase += Math.abs(pl.vx) * dt * 0.09;
 
+  // --- bosses (shoves, snaps, regen) ---
+  if (dt > 0) updateBosses(state, dt, time, bossHooks);
+
   // --- grass growth (round-robin so each frame stays cheap) ---
+  const gm = growthFrozen(state) ? 0 : growthMult(state.cycleT);
   const CHUNK = 128;
   const factor = WORLD_TILES / CHUNK;
-  for (let n = 0; n < CHUNK; n++) {
+  if (gm > 0) for (let n = 0; n < CHUNK; n++) {
     const i = growPtr;
     growPtr = (growPtr + 1) % WORLD_TILES;
     const g = state.grass[i];
     if (g < MAX_STAGE) {
-      const ng = Math.min(MAX_STAGE, g + growthRate(i) * dt * factor);
+      const ng = Math.min(MAX_STAGE, g + growthRate(i) * dt * factor * gm);
       state.grass[i] = ng;
       if (g < 1 && ng >= 1) state.mowedCount--;
     }
@@ -138,7 +173,7 @@ function update(dt) {
     const tool = TOOLS_BY_ID[state.toolId];
     const power = toolPower();
     const baseTile = Math.floor(pl.x / TILE_W);
-    let hitSomething = false;
+    let hitSomething = tryHitBoss(state, dt, time, power, tool.reach, bossHooks) === 'hit';
 
     for (let r = 0; r <= tool.reach; r++) {
       const i = baseTile + pl.facing * r;
@@ -172,6 +207,11 @@ function update(dt) {
       }
     }
   }
+
+  // --- power-ups & tutorial ---
+  if (dt > 0) updatePowerups(state, dt);
+  updateTutorial(state); // polls state — must also run while the shop is open (dt=0)
+  if (state.deathFlash > 0) state.deathFlash = Math.max(0, state.deathFlash - dt * 1.2);
 
   // --- particles & popups ---
   for (let i = state.particles.length - 1; i >= 0; i--) {
@@ -221,7 +261,8 @@ function update(dt) {
 
 function cutTuft(i, p) {
   const profit = 1 + PROFIT_PER_LEVEL * state.skills.profit;
-  const coins = Math.max(1, Math.round(grassCoins(p) * profit));
+  const coins = Math.max(1, Math.round(
+    grassCoins(p) * profit * coinMult(state.cycleT) * boostCoinMult(state)));
   state.coins += coins;
   state.totalCut++;
   state.grass[i] = 0;
@@ -274,6 +315,54 @@ function celebrate() {
   }
 }
 
+// ---------- bosses ----------
+
+const bossHooks = {
+  kill(cfg) {
+    respawnPlayer(`💀 ${cfg.name} got you! Back to the start you go…`);
+  },
+  defeated(cfg) {
+    state.coins += cfg.reward;
+    toast(`🏆 ${cfg.name} defeated! +${cfg.reward.toLocaleString()} 💰 The path is clear.`);
+    sfxBossDown();
+    const x = bossX(cfg);
+    state.popups.push({
+      x, y: GROUND_Y - 130, text: `+${cfg.reward.toLocaleString()}`,
+      life: 1.6, maxLife: 1.6, color: '#ffd75e',
+    });
+    const colors = ['#ffd75e', '#7ec850', '#8be05a', '#f0f0f0'];
+    for (let i = 0; i < 50; i++) {
+      state.particles.push({
+        type: 'clip',
+        x: x + (Math.random() - 0.5) * 80,
+        y: GROUND_Y - Math.random() * 100,
+        vx: (Math.random() - 0.5) * 260,
+        vy: -120 - Math.random() * 200,
+        rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 12,
+        size: 4 + Math.random() * 5,
+        life: 0.8 + Math.random() * 0.8, maxLife: 1.6,
+        color: colors[i % colors.length],
+      });
+    }
+    doSave();
+  },
+  popup(x, text) {
+    state.popups.push({ x, y: GROUND_Y - 120, text, life: 1, maxLife: 1, color: '#fff' });
+  },
+};
+
+function respawnPlayer(msg) {
+  const pl = state.player;
+  pl.x = state.playerX = WORLD_W * 0.05;
+  pl.vx = 0; pl.vy = 0; pl.y = GROUND_Y; pl.onGround = true;
+  pl.stun = 0.5;
+  state.deathFlash = 1;
+  camX = clamp(pl.x - viewWidth() / 2, 0, Math.max(0, WORLD_W - viewWidth()));
+  sfxDeath();
+  toast(msg);
+  doSave();
+}
+
 // ---------- persistence ----------
 
 function doSave() {
@@ -285,6 +374,7 @@ function resetGame() {
   clearSave();
   state = freshState();
   attachRuntime(state);
+  wasNight = isNight(state.cycleT);
   camX = 0;
   renderShop();
   updateHUD(true);
@@ -298,6 +388,7 @@ initRender(canvas);
 camX = clamp(state.player.x - viewWidth() / 2, 0, Math.max(0, WORLD_W - viewWidth()));
 initInput(canvas);
 initUI({ get state() { return state; }, save: doSave, resetGame });
+initTutorial({ get state() { return state; }, save: doSave });
 
 // keep Space/Enter for gameplay: don't leave clicked buttons focused
 document.addEventListener('click', (e) => {
@@ -380,15 +471,17 @@ function frame(now) {
   time += Math.min(dtRaw, 0.1);
 
   if (dtRaw > 2) {
-    // tab was asleep — grass grew the whole time
-    applyGrowth(dtRaw);
+    // tab was asleep — grass grew the whole time (at the day/night average rate)
+    state.cycleT = (state.cycleT + dtRaw) % CYCLE_LENGTH;
+    applyGrowth(dtRaw * AVG_GROWTH_MULT);
     recountMowed(state);
   } else if (started && !isShopOpen()) {
     update(Math.min(dtRaw, 0.05));
   } else if (started) {
     // shop open: world keeps growing, player stands still
     update(0);
-    applyGrowth(Math.min(dtRaw, 0.05));
+    const gm = growthFrozen(state) ? 0 : growthMult(state.cycleT);
+    applyGrowth(Math.min(dtRaw, 0.05) * gm);
   }
 
   render(state, camX, time);

@@ -95,6 +95,58 @@ html, body {
   margin-top: 2px;
 }
 
+#hud-boosts {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.boost-pill {
+  font-size: 12px;
+  padding: 3px 10px;
+  background: rgba(40, 60, 20, 0.75);
+  border: 1px solid rgba(255, 215, 94, 0.55);
+}
+
+/* ---------- tutorial banner ---------- */
+#tutorial {
+  position: fixed;
+  top: calc(56px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(20, 40, 20, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  border-radius: 14px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: bold;
+  max-width: 92vw;
+  animation: tut-pop 0.3s ease-out;
+}
+#tut-progress {
+  background: rgba(126, 200, 80, 0.9);
+  color: #1c3a10;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+#tut-skip {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+#tut-skip:hover { color: #fff; }
+@keyframes tut-pop { from { opacity: 0; margin-top: -8px; } }
+
 /* ---------- touch controls ---------- */
 #touch-controls {
   position: fixed;
