@@ -1,8 +1,9 @@
 import {
   TOOLS, TOOLS_BY_ID, SKILLS, SHARPEN_MAX, SHARPEN_BONUS,
-  sharpenCost, skillCost,
+  sharpenCost, skillCost, POWERUPS_BY_ID,
 } from './config.js';
 import { formatCoins } from './util.js';
+import { hudClock } from './daynight.js';
 import { sfxBuy, sfxError } from './sound.js';
 
 const $ = (id) => document.getElementById(id);
@@ -173,7 +174,7 @@ function btn(cls, label, enabled, onClick) {
 
 // ---------- HUD ----------
 
-let lastCoins = -1, lastPct = -1, lastTool = '';
+let lastCoins = -1, lastPct = -1, lastTool = '', lastClock = '', lastBoosts = '';
 
 export function updateHUD(force = false) {
   const s = game.state;
@@ -191,6 +192,22 @@ export function updateHUD(force = false) {
   if (force || pct !== lastPct) {
     lastPct = pct;
     $('hud-percent').textContent = `${pct.toFixed(1)}% mowed · 🌍 goal: 100%`;
+  }
+  // day/night clock: time until the next switch
+  const c = hudClock(s.cycleT ?? 0);
+  const clockLabel = `${c.icon} ${Math.floor(c.remain / 60)}:${String(Math.floor(c.remain % 60)).padStart(2, '0')}`;
+  if (force || clockLabel !== lastClock) {
+    lastClock = clockLabel;
+    $('hud-daynight').textContent = clockLabel;
+  }
+  // active boost timers
+  let boosts = '';
+  for (const [id, remain] of Object.entries(s.boosts ?? {})) {
+    boosts += `<span class="hud-pill boost-pill">${POWERUPS_BY_ID[id].icon} ${Math.ceil(remain)}s</span>`;
+  }
+  if (force || boosts !== lastBoosts) {
+    lastBoosts = boosts;
+    $('hud-boosts').innerHTML = boosts;
   }
 }
 

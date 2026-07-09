@@ -17,6 +17,7 @@
       <div class="hud-group">
         <span id="hud-coins" class="hud-pill">💰 0</span>
         <span id="hud-tool" class="hud-pill">✂️ Rusty Scissors</span>
+        <span id="hud-daynight" class="hud-pill" title="Day: grass grows fast · Night: darker, but cuts pay +50%">🌞</span>
       </div>
       <div id="hud-progress">
         <canvas id="minimap" width="640" height="14"></canvas>
@@ -28,6 +29,14 @@
         <button id="btn-fullscreen" class="hud-btn" title="Fullscreen (F)">⛶</button>
       </div>
     </div>
+    <div id="hud-boosts"></div>
+  </div>
+
+  <!-- Tutorial banner -->
+  <div id="tutorial" class="hidden">
+    <span id="tut-progress">1/5</span>
+    <span id="tut-text"></span>
+    <button id="tut-skip">skip ✕</button>
   </div>
 
   <!-- Touch controls (shown on touch devices) -->
@@ -52,6 +61,7 @@
         <li><b>Mow</b> — hold Space / J / mouse</li>
         <li><b>Jump</b> — W / ↑</li>
         <li><b>Shop</b> — B &nbsp;·&nbsp; <b>Fullscreen</b> — F</li>
+        <li><b>Beware</b> — 👹 giant weeds guard the deep meadow &nbsp;·&nbsp; 🌙 nights are dark but pay more</li>
       </ul>
       <button id="btn-start" class="big-btn">▶ Start mowing</button>
       <p class="save-note" id="save-note"></p>

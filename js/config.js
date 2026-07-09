@@ -61,6 +61,7 @@ export const TOOLS = [
 ];
 
 export const TOOLS_BY_ID = Object.fromEntries(TOOLS.map(t => [t.id, t]));
+export const TOOL_INDEX = Object.fromEntries(TOOLS.map((t, i) => [t.id, i]));
 
 // vehicles are drawn differently and rumble while mowing
 export const VEHICLE_TOOLS = new Set(['riding', 'tractor']);
@@ -93,6 +94,47 @@ export const SPEED_PER_LEVEL   = 0.08;
 export const MUSCLE_PER_LEVEL  = 0.12;
 export const FITNESS_PER_LEVEL = 0.08;
 export const PROFIT_PER_LEVEL  = 0.15;
+
+// ---- day / night ----
+export const CYCLE_LENGTH = 420;        // seconds for a full day+night cycle
+export const DAY_FRACTION = 0.62;       // slice of the cycle that is daytime
+export const DAY_GROWTH_MULT = 1.15;    // sunshine: grass grows faster by day
+export const NIGHT_GROWTH_MULT = 0.45;  // grass dozes off at night
+export const NIGHT_COIN_MULT = 1.5;     // night-shift pay for cutting in the dark
+export const NIGHT_VISION_RADIUS = 290; // px of clear sight around the player at night
+
+// ---- bosses ----
+// Giant weeds that guard the deep meadow. They can't be harmed until you meet
+// their requirements — until then they shove you away (or worse).
+// attack: 'push' knocks the player back, 'kill' sends them back to the start.
+export const BOSSES = [
+  { id: 'bramble', name: 'Bramble Beast', icon: '🌵', tile: 850,
+    hp: 1400, attack: 'push', minToolIdx: 3, minMowedPct: 0, reward: 800,
+    desc: 'A snarling knot of thorns.' },
+  { id: 'thistle', name: 'Thistle Titan', icon: '🌺', tile: 1850,
+    hp: 6000, attack: 'push', minToolIdx: 5, minMowedPct: 20, reward: 5000,
+    desc: 'Royalty among weeds. Rude, too.' },
+  { id: 'weedking', name: 'The Weed King', icon: '👑', tile: 2750,
+    hp: 20000, attack: 'kill', minToolIdx: 6, minMowedPct: 45, reward: 30000,
+    desc: 'The lawn’s final boss. It bites.' },
+];
+export const BOSSES_BY_ID = Object.fromEntries(BOSSES.map(b => [b.id, b]));
+export const BOSS_REGEN_DELAY = 4;    // seconds without damage before a boss heals
+export const BOSS_REGEN_RATE = 0.025; // fraction of max HP healed per second
+
+// ---- power-up pickups ----
+export const POWERUPS = [
+  { id: 'espresso',  icon: '☕', name: 'Espresso',      dur: 25, desc: '+60% walking speed' },
+  { id: 'whetstone', icon: '🪨', name: 'Whetstone',     dur: 25, desc: 'double mowing power' },
+  { id: 'clover',    icon: '🍀', name: 'Golden Clover', dur: 30, desc: 'double coins' },
+  { id: 'frost',     icon: '🧊', name: 'Frost Charm',   dur: 45, desc: 'grass stops growing' },
+];
+export const POWERUPS_BY_ID = Object.fromEntries(POWERUPS.map(p => [p.id, p]));
+export const POWERUP_MAX_ACTIVE = 2; // pickups existing in the world at once
+export const POWERUP_TTL = 45;       // seconds before an uncollected pickup fades
+
+// ---- tutorial ----
+export const TUT_DONE = 99; // tutStep value meaning finished/skipped
 
 // ---- persistence ----
 export const SAVE_KEY = 'mowme-save-v1';

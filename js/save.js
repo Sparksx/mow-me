@@ -1,4 +1,7 @@
-import { WORLD_TILES, WORLD_W, MAX_STAGE, SAVE_KEY } from './config.js';
+import {
+  WORLD_TILES, WORLD_W, MAX_STAGE, SAVE_KEY,
+  CYCLE_LENGTH, TUT_DONE, BOSSES, POWERUPS_BY_ID,
+} from './config.js';
 import { hashRand, clamp } from './util.js';
 
 // grass progress is quantized to 0.05 steps and stored one char per tuft
@@ -26,6 +29,10 @@ function decodeGrass(str) {
   return grass;
 }
 
+function freshBosses() {
+  return Object.fromEntries(BOSSES.map(b => [b.id, { hp: b.hp, dead: false }]));
+}
+
 export function freshState() {
   // the world starts overgrown, except a tame "backyard" around the spawn
   const grass = new Float32Array(WORLD_TILES);
@@ -46,6 +53,10 @@ export function freshState() {
     totalCut: 0,
     won: false,
     muted: false,
+    cycleT: CYCLE_LENGTH * 0.08,   // fresh lawns start in the morning
+    tutStep: 0,
+    boosts: {},                    // powerup id -> seconds remaining
+    bosses: freshBosses(),         // boss id -> { hp, dead }
     savedAt: Date.now(),
   };
 }
@@ -63,6 +74,14 @@ export function saveState(state) {
       totalCut: state.totalCut,
       won: state.won,
       muted: state.muted,
+      cycleT: Math.round(state.cycleT * 10) / 10,
+      tutStep: state.tutStep,
+      boosts: Object.fromEntries(
+        Object.entries(state.boosts).map(([k, v]) => [k, Math.round(v * 10) / 10])),
+      bosses: Object.fromEntries(BOSSES.map(b => {
+        const e = state.bosses[b.id];
+        return [b.id, { hp: Math.round(e.hp), dead: !!e.dead }];
+      })),
       savedAt: Date.now(),
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -91,6 +110,19 @@ export function loadState() {
     state.totalCut = Math.max(0, Number(data.totalCut) || 0);
     state.won = !!data.won;
     state.muted = !!data.muted;
+    state.cycleT = clamp(Number(data.cycleT) || 0, 0, CYCLE_LENGTH);
+    // saves from before the tutorial existed skip it — those players know the ropes
+    state.tutStep = Number.isFinite(data.tutStep) ? data.tutStep : TUT_DONE;
+    state.boosts = {};
+    for (const [k, v] of Object.entries(data.boosts || {})) {
+      if (POWERUPS_BY_ID[k] && Number(v) > 0) state.boosts[k] = Math.min(Number(v), 120);
+    }
+    for (const cfg of BOSSES) {
+      const e = (data.bosses || {})[cfg.id];
+      if (!e) continue;
+      const dead = !!e.dead;
+      state.bosses[cfg.id] = { hp: dead ? 0 : clamp(Number(e.hp) || cfg.hp, 1, cfg.hp), dead };
+    }
     state.savedAt = Number(data.savedAt) || Date.now();
     const offlineSeconds = Math.max(0, (Date.now() - state.savedAt) / 1000);
     return { state, offlineSeconds };
