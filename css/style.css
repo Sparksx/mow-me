@@ -406,3 +406,6 @@ html, body {
   .big-btn { font-size: 17px; padding: 9px 24px; }
   .start-panel { padding: 16px; }
 }
+
+.legal-links { margin-top: 12px; font-size: 11px; opacity: 0.6; }
+.legal-links a { color: inherit; margin: 0 6px; }
